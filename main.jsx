@@ -4,18 +4,22 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
-  ArrowDownRight,
+  ArrowDown,
   ArrowUpRight,
   Menu,
   X,
   Instagram,
-  Linkedin,
-  MoveUpRight
+  Linkedin
 } from 'lucide-react';
+
 import './style.css';
 import characterImage from './vr-character.png';
 
 gsap.registerPlugin(ScrollTrigger);
+
+/* --------------------------------
+   CINEMATIC 3D CHARACTER
+-------------------------------- */
 
 function ThreeHero() {
   const mountRef = useRef(null);
@@ -27,239 +31,225 @@ function ThreeHero() {
     const scene = new THREE.Scene();
 
     const camera = new THREE.PerspectiveCamera(
-      42,
-      host.clientWidth / host.clientHeight,
+      40,
+      window.innerWidth / window.innerHeight,
       0.1,
       100
     );
 
-    camera.position.set(0, 0, 8.5);
+    camera.position.set(0, 0, 8);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true
+      alpha: true,
+      antialias: true
     });
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
-    renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.15;
 
     host.appendChild(renderer.domElement);
 
-    const group = new THREE.Group();
-    scene.add(group);
+    const characterGroup = new THREE.Group();
+    scene.add(characterGroup);
 
-    // VR CHARACTER IMAGE
-    const textureLoader = new THREE.TextureLoader();
+    const loader = new THREE.TextureLoader();
 
-    const texture = textureLoader.load(characterImage);
+    const texture = loader.load(characterImage);
     texture.colorSpace = THREE.SRGBColorSpace;
 
-    const characterMaterial = new THREE.MeshBasicMaterial({
+    const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false
     });
 
-    const characterGeometry = new THREE.PlaneGeometry(3.5, 4.8);
+    const geometry = new THREE.PlaneGeometry(6, 4);
 
-    const character = new THREE.Mesh(
-      characterGeometry,
-      characterMaterial
+    const character = new THREE.Mesh(geometry, material);
+    character.position.set(0, 0, 0);
+    characterGroup.add(character);
+
+    /* Orange cinematic halo */
+
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(2.8, 0.012, 12, 180),
+      new THREE.MeshBasicMaterial({
+        color: 0xff5727,
+        transparent: true,
+        opacity: 0.65
+      })
     );
 
-    character.position.set(0, 0, 0.2);
-    group.add(character);
+    halo.position.z = -0.8;
+    characterGroup.add(halo);
 
-    // ORANGE CINEMATIC RING
-    const ringGeometry = new THREE.TorusGeometry(
-      2.5,
-      0.012,
-      12,
-      160
-    );
+    /* Background particles */
 
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0xf05a38,
-      transparent: true,
-      opacity: 0.55
-    });
-
-    const ring = new THREE.Mesh(
-      ringGeometry,
-      ringMaterial
-    );
-
-    ring.position.z = -0.5;
-    group.add(ring);
-
-    // LIGHTING
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-
-    const orangeLight = new THREE.PointLight(
-      0xff642f,
-      35,
-      18
-    );
-
-    orangeLight.position.set(3, 2, 4);
-    scene.add(orangeLight);
-
-    const redLight = new THREE.PointLight(
-      0x8f160d,
-      25,
-      15
-    );
-
-    redLight.position.set(-3, -2, 2);
-    scene.add(redLight);
-
-    // FLOATING PARTICLES
-    const particleCount = 700;
-    const positions = new Float32Array(particleCount * 3);
+    const particleCount = 900;
+    const particlePositions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 12;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 9;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 6;
+      particlePositions[i * 3] = (Math.random() - 0.5) * 15;
+      particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+      particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 7;
     }
 
     const particleGeometry = new THREE.BufferGeometry();
 
     particleGeometry.setAttribute(
       'position',
-      new THREE.BufferAttribute(positions, 3)
+      new THREE.BufferAttribute(particlePositions, 3)
     );
+
+    const particleMaterial = new THREE.PointsMaterial({
+      color: 0xffa078,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.65
+    });
 
     const particles = new THREE.Points(
       particleGeometry,
-      new THREE.PointsMaterial({
-        color: 0xffa078,
-        size: 0.018,
-        transparent: true,
-        opacity: 0.65
-      })
+      particleMaterial
     );
 
     scene.add(particles);
 
-    // MOUSE MOVEMENT
-    let targetX = 0;
-    let targetY = 0;
-    let raf;
+    /* Mouse parallax */
 
-    const onPointer = (e) => {
-      const rect = host.getBoundingClientRect();
+    let mouseX = 0;
+    let mouseY = 0;
+    let currentX = 0;
+    let currentY = 0;
 
-      targetX =
-        ((e.clientX - rect.left) / rect.width - 0.5) * 0.35;
-
-      targetY =
-        ((e.clientY - rect.top) / rect.height - 0.5) * 0.25;
+    const onPointerMove = (event) => {
+      mouseX = (event.clientX / window.innerWidth - 0.5) * 0.22;
+      mouseY = (event.clientY / window.innerHeight - 0.5) * 0.16;
     };
 
-    host.addEventListener('pointermove', onPointer);
+    window.addEventListener('pointermove', onPointerMove);
 
-    // SCROLL CONTROLLED ZOOM
-    const scrollAnimation = gsap.timeline({
+    /* Scroll controlled animation */
+
+    const cinematicTimeline = gsap.timeline({
       scrollTrigger: {
-        trigger: '.hero',
+        trigger: '.story-sequence',
         start: 'top top',
-        end: 'bottom top',
-        scrub: 1
+        end: 'bottom bottom',
+        scrub: 1.2
       }
     });
 
-    scrollAnimation.to(
-      camera.position,
-      {
-        z: 5.2,
+    cinematicTimeline
+      .to(characterGroup.scale, {
+        x: 1.25,
+        y: 1.25,
+        z: 1.25,
         ease: 'none'
-      },
-      0
-    );
+      }, 0)
 
-    scrollAnimation.to(
-      group.scale,
-      {
-        x: 1.35,
-        y: 1.35,
-        z: 1.35,
+      .to(characterGroup.rotation, {
+        y: 0.12,
+        x: -0.04,
         ease: 'none'
-      },
-      0
-    );
+      }, 0)
 
-    scrollAnimation.to(
-      group.position,
-      {
-        y: -0.65,
+      .to(camera.position, {
+        z: 6.2,
         ease: 'none'
-      },
-      0
-    );
+      }, 0)
 
-    // ANIMATION LOOP
+      .to(characterGroup.position, {
+        y: -0.2,
+        ease: 'none'
+      }, 0.2)
+
+      .to(characterGroup.scale, {
+        x: 1.75,
+        y: 1.75,
+        z: 1.75,
+        ease: 'none'
+      }, 0.42)
+
+      .to(characterGroup.rotation, {
+        y: -0.16,
+        x: 0.035,
+        ease: 'none'
+      }, 0.48)
+
+      .to(camera.position, {
+        z: 4.8,
+        ease: 'none'
+      }, 0.55)
+
+      .to(characterGroup.position, {
+        y: -0.45,
+        ease: 'none'
+      }, 0.7);
+
+    /* Render loop */
+
     const clock = new THREE.Clock();
+    let animationFrame;
 
     const animate = () => {
-      const t = clock.getElapsedTime();
+      const elapsed = clock.getElapsedTime();
 
-      group.rotation.y +=
-        (targetX - group.rotation.y) * 0.025;
+      currentX += (mouseX - currentX) * 0.035;
+      currentY += (mouseY - currentY) * 0.035;
 
-      group.rotation.x +=
-        (targetY - group.rotation.x) * 0.025;
+      characterGroup.rotation.y +=
+        (currentX - characterGroup.rotation.y) * 0.015;
 
-      character.position.y = Math.sin(t * 0.8) * 0.06;
+      characterGroup.rotation.x +=
+        (currentY - characterGroup.rotation.x) * 0.015;
 
-      ring.rotation.z += 0.0015;
-      particles.rotation.y = t * 0.01;
+      halo.rotation.z = elapsed * 0.12;
+      particles.rotation.y = elapsed * 0.009;
 
       renderer.render(scene, camera);
 
-      raf = requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
     };
 
     animate();
 
-    // RESPONSIVE RESIZE
+    /* Responsive resize */
+
     const resize = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
 
-      if (!w || !h) return;
-
-      camera.aspect = w / h;
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
 
-      renderer.setSize(w, h);
+      renderer.setSize(width, height);
     };
 
     window.addEventListener('resize', resize);
 
-    // CLEANUP
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(animationFrame);
 
       window.removeEventListener('resize', resize);
-      host.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('pointermove', onPointerMove);
 
-      scrollAnimation.scrollTrigger?.kill();
-      scrollAnimation.kill();
+      cinematicTimeline.scrollTrigger?.kill();
+      cinematicTimeline.kill();
 
-      characterGeometry.dispose();
-      characterMaterial.dispose();
+      geometry.dispose();
+      material.dispose();
       texture.dispose();
 
-      ringGeometry.dispose();
-      ringMaterial.dispose();
+      halo.geometry.dispose();
+      halo.material.dispose();
 
       particleGeometry.dispose();
-      particles.material.dispose();
+      particleMaterial.dispose();
 
       renderer.dispose();
 
@@ -269,343 +259,347 @@ function ThreeHero() {
     };
   }, []);
 
-  return (
-    <div
-      className="three-stage"
-      ref={mountRef}
-      aria-label="Interactive VR character animation"
-    />
-  );
+  return <div className="three-stage" ref={mountRef} />;
 }
 
-// SERVICES
+/* --------------------------------
+   WEBSITE CONTENT
+-------------------------------- */
+
 const services = [
-  ['01', 'Digital strategy', 'A clear direction for brands ready to move forward.'],
-  ['02', 'Web experiences', 'Fast, thoughtful websites built to turn attention into action.'],
-  ['03', 'Search & visibility', 'SEO that helps the right people discover your business.'],
-  ['04', 'Performance marketing', 'Meta and Google campaigns focused on measurable growth.'],
-  ['05', 'Social & content', 'Distinctive social media, reels and creative that people remember.']
+  {
+    number: '01',
+    title: 'Digital Strategy',
+    description: 'Clear direction and smart planning for ambitious brands.'
+  },
+  {
+    number: '02',
+    title: 'Web Experiences',
+    description: 'Modern websites designed to create meaningful experiences.'
+  },
+  {
+    number: '03',
+    title: 'Search & SEO',
+    description: 'Helping the right people discover your business online.'
+  },
+  {
+    number: '04',
+    title: 'Performance Ads',
+    description: 'Focused Meta and Google campaigns built around growth.'
+  },
+  {
+    number: '05',
+    title: 'Social & Content',
+    description: 'Creative content that captures attention and builds brands.'
+  }
 ];
 
-// PROJECTS
 const projects = [
-  { n: '01', title: 'Digital presence', type: 'Website experience', cls: 'project-a' },
-  { n: '02', title: 'Brand momentum', type: 'Social & performance', cls: 'project-b' },
-  { n: '03', title: 'Search growth', type: 'SEO strategy', cls: 'project-c' }
+  {
+    number: '01',
+    title: 'Digital Presence',
+    category: 'Website Experience'
+  },
+  {
+    number: '02',
+    title: 'Brand Momentum',
+    category: 'Social & Performance'
+  },
+  {
+    number: '03',
+    title: 'Search Growth',
+    category: 'SEO Strategy'
+  }
 ];
+
+/* --------------------------------
+   MAIN APP
+-------------------------------- */
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.from('.hero-copy > *', {
-        y: 42,
+    const context = gsap.context(() => {
+      gsap.from('.hero-logo', {
         opacity: 0,
-        duration: 1,
-        stagger: 0.13,
-        ease: 'power3.out',
-        delay: 0.2
+        y: 35,
+        duration: 1.5,
+        ease: 'power4.out'
       });
 
-      gsap.utils.toArray('.reveal').forEach((el) => {
+      gsap.from('.hero-scroll', {
+        opacity: 0,
+        duration: 1.2,
+        delay: 0.8
+      });
+
+      gsap.utils.toArray('.reveal').forEach((element) => {
         gsap.fromTo(
-          el,
-          { y: 55, opacity: 0 },
+          element,
+          {
+            y: 70,
+            opacity: 0
+          },
           {
             y: 0,
             opacity: 1,
-            duration: 0.9,
+            duration: 1.1,
             ease: 'power3.out',
             scrollTrigger: {
-              trigger: el,
-              start: 'top 86%',
+              trigger: element,
+              start: 'top 82%',
               once: true
             }
           }
         );
       });
 
-      gsap.to('.hero-orbit', {
-        rotate: 360,
-        duration: 50,
-        repeat: -1,
-        ease: 'none'
-      });
-
-      gsap.to('.marquee-track', {
-        xPercent: -25,
-        duration: 24,
-        repeat: -1,
-        ease: 'none'
+      gsap.utils.toArray('.service-card').forEach((element, index) => {
+        gsap.from(element, {
+          opacity: 0,
+          y: 50,
+          duration: 0.8,
+          delay: index * 0.08,
+          scrollTrigger: {
+            trigger: element,
+            start: 'top 88%',
+            once: true
+          }
+        });
       });
     });
 
-    return () => ctx.revert();
+    return () => context.revert();
   }, []);
 
   const closeMenu = () => setMenuOpen(false);
 
   return (
     <>
-      <header className="nav-wrap">
-        <a className="logo" href="#top" onClick={closeMenu}>
+      <ThreeHero />
+
+      <div className="cinematic-background" />
+
+      <header className="site-header">
+        <a href="#home" className="brand">
           REVON<span>.</span>AD
-        </a>
-
-        <nav className={menuOpen ? 'nav-links open' : 'nav-links'}>
-          <a href="#about" onClick={closeMenu}>About</a>
-          <a href="#services" onClick={closeMenu}>Services</a>
-          <a href="#work" onClick={closeMenu}>Work</a>
-          <a href="#contact" onClick={closeMenu}>Contact</a>
-        </nav>
-
-        <a className="nav-cta" href="#contact">
-          Let's talk <ArrowUpRight size={15} />
         </a>
 
         <button
           className="menu-toggle"
           onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
+          aria-label="Toggle navigation"
         >
           {menuOpen ? <X /> : <Menu />}
         </button>
+
+        <nav className={menuOpen ? 'navigation open' : 'navigation'}>
+          <a href="#about" onClick={closeMenu}>About</a>
+          <a href="#services" onClick={closeMenu}>Services</a>
+          <a href="#work" onClick={closeMenu}>Work</a>
+          <a href="#contact" onClick={closeMenu}>Contact</a>
+        </nav>
       </header>
 
-      <main id="top">
-        <section className="hero">
-          <div className="hero-grid"></div>
-          <div className="hero-orbit"></div>
+      <main className="story-sequence" id="home">
 
-          <ThreeHero />
+        {/* HERO */}
 
-          <div className="hero-copy">
-            <p className="eyebrow">
-              <span className="live-dot"></span>
-              INDEPENDENT DIGITAL GROWTH STUDIO
-            </p>
-
-            <h1>
-              Make your<br />
-              <em>next move</em><br />
-              matter<span className="orange">.</span>
+        <section className="hero-section">
+          <div className="hero-content">
+            <h1 className="hero-logo">
+              REVON<span>.</span>AD
             </h1>
 
-            <div className="hero-bottom">
-              <p>
-                We turn bold ideas into meaningful digital experiences,
-                stronger brands and measurable growth.
-              </p>
-
-              <a className="round-link" href="#about" aria-label="Explore">
-                <ArrowDownRight size={25} />
-              </a>
+            <div className="hero-scroll">
+              <span>SCROLL TO EXPERIENCE</span>
+              <ArrowDown size={17} />
             </div>
           </div>
 
-          <div className="hero-index">
-            01 / 05 <span>SCROLL TO EXPLORE</span>
-          </div>
-
-          <div className="hero-side-note">
-            STRATEGY · DESIGN · PERFORMANCE
+          <div className="hero-corner">
+            DIGITAL EXPERIENCE / 001
           </div>
         </section>
 
-        <div className="marquee">
-          <div className="marquee-track">
-            BUILD WHAT'S NEXT <b>✳</b> THINK BIGGER <b>✳</b> GROW WITH INTENT <b>✳</b> BUILD WHAT'S NEXT <b>✳</b> THINK BIGGER <b>✳</b> GROW WITH INTENT <b>✳</b>
-          </div>
-        </div>
+        {/* ABOUT */}
 
-        <section className="intro section-pad" id="about">
-          <div className="section-label reveal">
-            [ 01 — WHO WE ARE ]
-          </div>
-
-          <div className="intro-content reveal">
-            <p className="eyebrow">NOT JUST ANOTHER DIGITAL TEAM</p>
+        <section className="story-section about-section" id="about">
+          <div className="story-copy reveal">
+            <span className="eyebrow">01 / THE VISION</span>
 
             <h2>
-              Good work gets noticed.<br />
-              <span>Great strategy gets results.</span>
+              Beyond the
+              <br />
+              <em>ordinary.</em>
             </h2>
 
-            <div className="intro-foot">
-              <p>
-                REVON.AD partners with ambitious businesses to create a
-                sharper digital presence. From the first click to the final
-                conversion, we bring strategy, creativity and performance
-                together.
-              </p>
-
-              <a className="text-link" href="#contact">
-                GET TO KNOW US <MoveUpRight size={16} />
-              </a>
-            </div>
+            <p>
+              We bring strategy, creativity and technology together
+              to build digital experiences that move brands forward.
+            </p>
           </div>
+
+          <span className="section-index">01 — 05</span>
         </section>
 
-        <section className="services section-pad" id="services">
-          <div className="section-head reveal">
-            <div className="section-label">
-              [ 02 — WHAT WE DO ]
-            </div>
+        {/* SERVICES */}
+
+        <section className="story-section services-section" id="services">
+          <div className="section-heading reveal">
+            <span className="eyebrow">02 / WHAT WE DO</span>
 
             <h2>
-              Ideas into<br />
+              Ideas into
+              <br />
               <em>impact.</em>
             </h2>
 
             <p>
-              Everything your brand needs to move forward — under one roof.
+              Digital solutions designed to help your business
+              stand out and grow.
             </p>
           </div>
 
           <div className="service-list">
-            {services.map(([n, title, desc]) => (
-              <article className="service-row reveal" key={n}>
-                <span className="service-num">{n}</span>
-                <h3>{title}</h3>
-                <p>{desc}</p>
-                <ArrowUpRight className="service-arrow" />
-              </article>
-            ))}
-          </div>
-        </section>
+            {services.map((service) => (
+              <article className="service-card" key={service.number}>
+                <span>{service.number}</span>
 
-        <section className="work section-pad" id="work">
-          <div className="work-heading reveal">
-            <div>
-              <div className="section-label">
-                [ 03 — SELECTED FOCUS ]
-              </div>
-
-              <h2>
-                Made to<br />
-                <em>move people.</em>
-              </h2>
-            </div>
-
-            <p>
-              A glimpse of the kind of digital experiences and growth
-              systems we love to build.
-            </p>
-          </div>
-
-          <div className="project-grid">
-            {projects.map((p) => (
-              <article
-                className={`project-card ${p.cls} reveal`}
-                key={p.n}
-              >
-                <div className="project-art">
-                  <span className="art-orb"></span>
-                  <span className="art-line"></span>
-                  <span className="art-number">{p.n}</span>
+                <div>
+                  <h3>{service.title}</h3>
+                  <p>{service.description}</p>
                 </div>
 
-                <div className="project-meta">
-                  <div>
-                    <h3>{p.title}</h3>
-                    <p>{p.type}</p>
-                  </div>
-
-                  <ArrowUpRight />
-                </div>
+                <ArrowUpRight />
               </article>
             ))}
           </div>
 
-          <p className="work-note">
-            PROJECT SHOWCASE — ADD YOUR CLIENT WORK HERE
-          </p>
+          <span className="section-index">02 — 05</span>
         </section>
 
-        <section className="approach section-pad">
-          <div className="section-label reveal">
-            [ 04 — HOW WE WORK ]
-          </div>
+        {/* WORK */}
 
-          <div className="approach-main reveal">
+        <section className="story-section work-section" id="work">
+          <div className="section-heading reveal">
+            <span className="eyebrow">03 / OUR CREATIVE WORLD</span>
+
             <h2>
-              Clarity first.<br />
+              Made to
+              <br />
+              <em>move people.</em>
+            </h2>
+          </div>
+
+          <div className="project-list">
+            {projects.map((project) => (
+              <article className="project-card reveal" key={project.number}>
+                <span className="project-number">{project.number}</span>
+
+                <div className="project-info">
+                  <h3>{project.title}</h3>
+                  <p>{project.category}</p>
+                </div>
+
+                <ArrowUpRight />
+              </article>
+            ))}
+          </div>
+
+          <p className="project-note">
+            SELECTED DIGITAL EXPERIENCES
+          </p>
+
+          <span className="section-index">03 — 05</span>
+        </section>
+
+        {/* APPROACH */}
+
+        <section className="story-section approach-section">
+          <div className="section-heading reveal">
+            <span className="eyebrow">04 / THE PROCESS</span>
+
+            <h2>
+              Clarity first.
+              <br />
               <em>Momentum always.</em>
             </h2>
+          </div>
 
-            <div className="steps">
-              <div>
-                <b>01</b>
-                <span>Discover</span>
-                <p>Understand your business, audience and goals.</p>
-              </div>
+          <div className="approach-list">
+            <div className="approach-item reveal">
+              <span>01</span>
+              <h3>Discover</h3>
+              <p>Understand your business, audience and goals.</p>
+            </div>
 
-              <div>
-                <b>02</b>
-                <span>Define</span>
-                <p>Build a focused strategy and creative direction.</p>
-              </div>
+            <div className="approach-item reveal">
+              <span>02</span>
+              <h3>Define</h3>
+              <p>Create a focused strategy and creative direction.</p>
+            </div>
 
-              <div>
-                <b>03</b>
-                <span>Deliver</span>
-                <p>Launch, measure and keep improving.</p>
-              </div>
+            <div className="approach-item reveal">
+              <span>03</span>
+              <h3>Deliver</h3>
+              <p>Launch, measure and keep improving.</p>
             </div>
           </div>
+
+          <span className="section-index">04 — 05</span>
         </section>
 
-        <section className="contact section-pad" id="contact">
-          <div className="contact-glow"></div>
+        {/* CONTACT */}
 
-          <div className="section-label reveal">
-            [ 05 — YOUR NEXT MOVE ]
-          </div>
-
+        <section className="story-section contact-section" id="contact">
           <div className="contact-content reveal">
-            <p className="eyebrow">HAVE A GOOD ONE IN MIND?</p>
+            <span className="eyebrow">05 / YOUR NEXT MOVE</span>
 
             <h2>
-              Let's make<br />
+              Let's make
+              <br />
               <em>it happen.</em>
             </h2>
 
+            <p>
+              Have an idea? Let's turn it into something meaningful.
+            </p>
+
             <a
               className="contact-button"
-              href="https://wa.me/919876543210?text=Hi%20REVON.AD%2C%20I%27d%20like%20to%20discuss%20a%20project."
+              href="https://wa.me/919876543210?text=Hi%20REVON.AD"
+              target="_blank"
+              rel="noreferrer"
             >
-              START A CONVERSATION <ArrowUpRight size={18} />
+              START A CONVERSATION
+              <ArrowUpRight size={18} />
+            </a>
+          </div>
+
+          <div className="contact-footer">
+            <a href="#home" className="brand">
+              REVON<span>.</span>AD
             </a>
 
-            <p className="contact-hint">
-              Replace the sample WhatsApp number in the code with your business number.
-            </p>
+            <div className="social-links">
+              <a href="https://www.instagram.com/" aria-label="Instagram">
+                <Instagram />
+              </a>
+
+              <a href="https://www.linkedin.com/" aria-label="LinkedIn">
+                <Linkedin />
+              </a>
+            </div>
+
+            <small>
+              © {new Date().getFullYear()} REVON.AD
+            </small>
           </div>
         </section>
+
       </main>
-
-      <footer>
-        <a className="logo" href="#top">
-          REVON<span>.</span>AD
-        </a>
-
-        <p>MAKE YOUR NEXT MOVE MATTER.</p>
-
-        <div className="socials">
-          <a href="https://www.instagram.com/" aria-label="Instagram">
-            <Instagram />
-          </a>
-
-          <a href="https://www.linkedin.com/" aria-label="LinkedIn">
-            <Linkedin />
-          </a>
-        </div>
-
-        <small>
-          © {new Date().getFullYear()} REVON.AD. ALL RIGHTS RESERVED.
-        </small>
-      </footer>
     </>
   );
 }
