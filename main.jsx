@@ -1,287 +1,138 @@
 
-import React, { useEffect, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import {
-  ArrowUpRight,
-  ArrowDown,
-  Instagram,
-  Linkedin
-} from 'lucide-react';
-import './style.css';
+import React, { useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import "./style.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
 function App() {
   const heroRef = useRef(null);
   const videoRef = useRef(null);
+  const titleRef = useRef(null);
+  const introRef = useRef(null);
 
   useEffect(() => {
-    const hero = heroRef.current;
     const video = videoRef.current;
+    const hero = heroRef.current;
 
-    if (!hero || !video) return;
+    if (!video || !hero) return;
 
-    let scrollTween;
-    let context;
+    let ctx;
 
     const setupAnimation = () => {
       if (!video.duration || !Number.isFinite(video.duration)) return;
 
-      video.currentTime = 0;
-
-      context = gsap.context(() => {
-        scrollTween = gsap.to(video, {
-          currentTime: video.duration,
-          ease: 'none',
+      ctx = gsap.context(() => {
+        const timeline = gsap.timeline({
           scrollTrigger: {
             trigger: hero,
-            start: 'top top',
-            end: () => `+=${Math.max(window.innerHeight * 2.5, video.duration * 450)}`,
-            scrub: 0.6,
+            start: "top top",
+            end: "+=1800",
+            scrub: 0.5,
             pin: true,
             anticipatePin: 1,
-            invalidateOnRefresh: true
-          }
+            invalidateOnRefresh: true,
+          },
         });
 
-        gsap.to('.hero-title', {
+        // Character rotation and zoom through the video
+        timeline.to(video, {
+          currentTime: video.duration,
+          ease: "none",
+          duration: 1,
+        }, 0);
+
+        // Text moves together with the character animation
+        timeline.to(titleRef.current, {
+          y: -180,
           scale: 0.72,
           opacity: 0,
-          y: -80,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: hero,
-            start: 'top top',
-            end: '+=65%',
-            scrub: 1
-          }
-        });
+          ease: "none",
+          duration: 0.65,
+        }, 0.12);
 
-        gsap.utils.toArray('.reveal').forEach((element) => {
-          gsap.fromTo(
-            element,
-            { opacity: 0, y: 45 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 1,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: element,
-                start: 'top 88%',
-                once: true
-              }
-            }
-          );
-        });
-      });
+        timeline.to(introRef.current, {
+          y: -100,
+          opacity: 1,
+          ease: "none",
+          duration: 0.35,
+        }, 0.45);
 
-      ScrollTrigger.refresh();
+      }, hero);
     };
 
-    if (video.readyState >= 1) {
-      setupAnimation();
-    } else {
-      video.addEventListener('loadedmetadata', setupAnimation);
-    }
+    video.addEventListener("loadedmetadata", setupAnimation);
+
+    if (video.readyState >= 1) setupAnimation();
 
     return () => {
-      video.removeEventListener('loadedmetadata', setupAnimation);
-      context?.revert();
-      scrollTween?.kill();
+      video.removeEventListener("loadedmetadata", setupAnimation);
+      if (ctx) ctx.revert();
     };
   }, []);
 
   return (
-    <>
-      <header className="navbar">
-        <a href="#home" className="brand">
-          REVON<span>.AD</span>
-        </a>
+    <main>
+      <section className="hero" ref={heroRef}>
+        <video
+          ref={videoRef}
+          className="hero-video"
+          src="/vr-rotation.mp4"
+          muted
+          playsInline
+          preload="auto"
+        />
 
-        <nav>
-          <a href="#vision">VISION</a>
-          <a href="#services">SERVICES</a>
-          <a href="#work">WORK</a>
-          <a href="#contact">CONTACT</a>
-        </nav>
+        <div className="hero-content">
+          <h1 ref={titleRef}>REVON.AD</h1>
 
-        <a href="#contact" className="nav-button">
-          LET'S TALK <ArrowUpRight size={14} />
-        </a>
-      </header>
-
-      <main>
-        <section className="hero" id="home" ref={heroRef}>
-          <video
-            ref={videoRef}
-            className="hero-video"
-            src="/vr-rotation.mp4"
-            muted
-            playsInline
-            preload="auto"
-            disablePictureInPicture
-          />
-
-          <div className="hero-overlay"></div>
-
-          <div className="hero-title">
-            <p className="hero-kicker">INDEPENDENT DIGITAL EXPERIENCE</p>
-            <h1>
-              REVON<span>.AD</span>
-            </h1>
-            <p className="hero-subtitle">
-              MAKE YOUR NEXT MOVE MATTER.
-            </p>
+          <div className="hero-intro" ref={introRef}>
+            <p>CREATIVE DIGITAL EXPERIENCE</p>
+            <span>Ideas into impact.</span>
           </div>
-
-          <div className="scroll-hint">
-            <span>SCROLL TO DISCOVER</span>
-            <ArrowDown size={17} />
-          </div>
-
-          <div className="hero-counter">
-            DIGITAL EXPERIENCE / 001
-          </div>
-        </section>
-
-        <section className="content-section" id="vision">
-          <div className="content-row reveal">
-            <div className="section-heading">
-              <span className="number">01 / THE VISION</span>
-              <h2>
-                Beyond the<br />
-                <em>ordinary.</em>
-              </h2>
-            </div>
-
-            <div className="row-line"></div>
-
-            <p className="section-description">
-              We bring strategy, creativity and technology together
-              to build digital experiences that move brands forward.
-            </p>
-
-            <span className="section-count">01 — 05</span>
-          </div>
-
-          <div className="content-row reveal" id="services">
-            <div className="section-heading">
-              <span className="number">02 / WHAT WE DO</span>
-              <h2>
-                Ideas into<br />
-                <em>impact.</em>
-              </h2>
-            </div>
-
-            <div className="row-line"></div>
-
-            <div className="service-list">
-              <p><b>01</b> Digital Strategy</p>
-              <p><b>02</b> Web Experiences</p>
-              <p><b>03</b> Search & SEO</p>
-              <p><b>04</b> Performance Ads</p>
-              <p><b>05</b> Social & Content</p>
-            </div>
-
-            <ArrowUpRight className="big-arrow" />
-          </div>
-
-          <div className="content-row reveal" id="work">
-            <div className="section-heading">
-              <span className="number">03 / OUR CREATIVE WORLD</span>
-              <h2>
-                Made to<br />
-                <em>move people.</em>
-              </h2>
-            </div>
-
-            <div className="row-line"></div>
-
-            <p className="section-description">
-              A glimpse of the kind of digital experiences and
-              growth systems we love to build.
-            </p>
-
-            <span className="section-count">03 — 05</span>
-          </div>
-
-          <div className="content-row process-row reveal">
-            <div className="section-heading">
-              <span className="number">04 / THE PROCESS</span>
-              <h2>
-                Clarity first.<br />
-                <em>Momentum always.</em>
-              </h2>
-            </div>
-
-            <div className="row-line"></div>
-
-            <div className="process-list">
-              <div>
-                <b>01</b>
-                <h3>Discover</h3>
-                <p>Understand your business.</p>
-              </div>
-
-              <div>
-                <b>02</b>
-                <h3>Define</h3>
-                <p>Plan the right strategy.</p>
-              </div>
-
-              <div>
-                <b>03</b>
-                <h3>Deliver</h3>
-                <p>Launch and grow.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="content-row contact-row reveal" id="contact">
-            <div className="section-heading">
-              <span className="number">05 / YOUR NEXT MOVE</span>
-              <h2>
-                Let's make<br />
-                <em>it happen.</em>
-              </h2>
-            </div>
-
-            <div className="row-line"></div>
-
-            <a
-              className="contact-button"
-              href="mailto:hello@revon.ad"
-            >
-              START A CONVERSATION
-              <ArrowUpRight size={18} />
-            </a>
-          </div>
-        </section>
-      </main>
-
-      <footer>
-        <a href="#home" className="brand">
-          REVON<span>.AD</span>
-        </a>
-
-        <p>MAKE YOUR NEXT MOVE MATTER.</p>
-
-        <div className="social-links">
-          <a href="https://www.instagram.com/" aria-label="Instagram">
-            <Instagram size={17} />
-          </a>
-          <a href="https://www.linkedin.com/" aria-label="LinkedIn">
-            <Linkedin size={17} />
-          </a>
         </div>
 
-        <small>© {new Date().getFullYear()} REVON.AD</small>
-      </footer>
-    </>
+        <div className="scroll-indicator">
+          SCROLL TO EXPLORE
+          <span></span>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <p className="eyebrow">01 / OUR VISION</p>
+        <h2>
+          We create digital
+          <span> experiences.</span>
+        </h2>
+        <p className="section-description">
+          Building meaningful digital experiences through creativity,
+          strategy and technology.
+        </p>
+      </section>
+
+      <section className="services-section">
+        <p className="eyebrow">02 / WHAT WE DO</p>
+        <h2>Our Services</h2>
+
+        <div className="service-list">
+          <div>01 — Website Development</div>
+          <div>02 — Search Engine Optimization</div>
+          <div>03 — Social Media Marketing</div>
+          <div>04 — Meta & Google Ads</div>
+          <div>05 — Content Creation</div>
+        </div>
+      </section>
+
+      <section className="contact-section">
+        <p className="eyebrow">03 / LET'S CONNECT</p>
+        <h2>Let's build something different.</h2>
+        <a href="mailto:hello@revon.ad">GET IN TOUCH ↗</a>
+        <p className="copyright">© 2026 REVON.AD</p>
+      </section>
+    </main>
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById("root")).render(<App />);
